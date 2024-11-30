@@ -83,6 +83,8 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 	//message
 	//exchangetype
 
+	//add a check if it is subscribed to the queue or not
+
 	switch request.ExchangeType {
 	case "FANOUT":
 		//send the message into all the queues that are present in the exchange --> use workerpool to concurrently update the queue
@@ -206,4 +208,20 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 			}()
 		}()
 	}
+}
+
+func (ex *Exchange) Consume(write chan []byte, request objects.CommunicationMessage, userConn *websocket.Conn) {
+	//request will contain
+	//queue_name
+	//exchange_type
+
+	//return value will be the message
+	q := ex.Queues[request.QueueName]
+	outputMessage := q.Dequeue()
+	response := objects.CommunicationMessage{
+		Message: outputMessage,
+		Status:  "Queue Consumed successfully",
+	}
+	resBytes, _ := json.Marshal(response)
+	write <- resBytes
 }

@@ -16,8 +16,12 @@ func (q *Queue) Enqueue(str string) {
 }
 
 func (q *Queue) Dequeue() string {
-	queueFront := q.Queue[0]
-	temp := q.Queue[1:]
-	q.Queue = temp
-	return queueFront
+	if len(q.Queue) > 0 {
+		queueFront := q.Queue[0]
+		temp := q.Queue[1:]
+		q.Queue = temp
+		return queueFront
+	} else {
+		return "NO ELEMENT PRESENT"
+	}
 }

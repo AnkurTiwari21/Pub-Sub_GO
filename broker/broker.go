@@ -153,6 +153,9 @@ func (br *Broker) Worker(read chan []byte, write chan []byte, broker *Broker) {
 		case "PUBLISH_QUEUE":
 			exchange := broker.Exchanges[request.ExchangeType]
 			exchange.Publish(write, request, broker.UsersConn[request.UserConnString])
+		case "CONSUME_QUEUE":
+			exchange := broker.Exchanges[request.ExchangeType]
+			exchange.Consume(write, request, broker.UsersConn[request.UserConnString])
 		}
 	}
 }
