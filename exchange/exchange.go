@@ -84,7 +84,21 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 	//exchangetype
 
 	//add a check if it is subscribed to the queue or not
-
+	q := ex.Queues[request.QueueName]
+	isContain := false
+	for _, val := range q.UserSubscribedConn {
+		if val == userConn {
+			isContain = true
+		}
+	}
+	if isContain == false {
+		response := objects.Response{
+			Message: "You are not Subscribed to this Queue!",
+		}
+		resBytes, _ := json.Marshal(&response)
+		write <- resBytes
+		return
+	}
 	switch request.ExchangeType {
 	case "FANOUT":
 		//send the message into all the queues that are present in the exchange --> use workerpool to concurrently update the queue
@@ -103,19 +117,23 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 
 			//start a seperate go routine to notify all the users connected to the queue that new item is added
 			go func() {
-				for _, val := range q.UserSubscribedConn {
-					response := objects.CommunicationMessage{
+				for i := 0; i < len(q.UserSubscribedConn); i++ {
+
+					response := objects.Response{
 						Message: "The queue has a new item",
+						Data:    request.Message,
 					}
 					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
+					// val.WriteMessage(websocket.TextMessage, resBytes)
+					write <- resBytes
 				}
 			}()
 		}()
 	case "DIRECT":
 		//iterate on queue and whose-ever binding key matches with the routing key the add the message in the queue and update all the conn
 		distributor := make(chan *queue.Queue)
-
+		logrus.Info("before")
+		logrus.Info(ex.Queues)
 		go func() {
 			for _, val := range ex.Queues {
 				isContain := false
@@ -134,15 +152,17 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 			//receive a queue and update its content
 			q := <-distributor
 			q.Enqueue(request.Message)
-
 			//start a seperate go routine to notify all the users connected to the queue that new item is added
 			go func() {
-				for _, val := range q.UserSubscribedConn {
-					response := objects.CommunicationMessage{
+				for i := 0; i < len(q.UserSubscribedConn); i++ {
+
+					response := objects.Response{
 						Message: "The queue has a new item",
+						Data:    request.Message,
 					}
 					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
+					// val.WriteMessage(websocket.TextMessage, resBytes)
+					write <- resBytes
 				}
 			}()
 		}()
@@ -198,12 +218,15 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 
 			//start a seperate go routine to notify all the users connected to the queue that new item is added
 			go func() {
-				for _, val := range q.UserSubscribedConn {
-					response := objects.CommunicationMessage{
+				for i := 0; i < len(q.UserSubscribedConn); i++ {
+
+					response := objects.Response{
 						Message: "The queue has a new item",
+						Data:    request.Message,
 					}
 					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
+					// val.WriteMessage(websocket.TextMessage, resBytes)
+					write <- resBytes
 				}
 			}()
 		}()
@@ -215,13 +238,44 @@ func (ex *Exchange) Consume(write chan []byte, request objects.CommunicationMess
 	//queue_name
 	//exchange_type
 
-	//return value will be the message
 	q := ex.Queues[request.QueueName]
+	isContain := false
+	for _, val := range q.UserSubscribedConn {
+		if val == userConn {
+			isContain = true
+		}
+	}
+	if isContain == false {
+		response := objects.CommunicationMessage{
+			Message: "You are not Subscribed to this Queue!",
+		}
+		resBytes, _ := json.Marshal(&response)
+		write <- resBytes
+		return
+	}
+
+	//return value will be the message
 	outputMessage := q.Dequeue()
-	response := objects.CommunicationMessage{
+	response := objects.Response{
 		Message: outputMessage,
-		Status:  "Queue Consumed successfully",
 	}
 	resBytes, _ := json.Marshal(response)
 	write <- resBytes
+}
+
+func (ex *Exchange) ListAllMessages(userConn *websocket.Conn) {
+	response := []objects.CompleteResponse{}
+
+	for _, val := range ex.Queues {
+		for _, connVal := range val.UserSubscribedConn {
+			if connVal == userConn {
+				response = append(response, objects.CompleteResponse{
+					QueueName: val.Name,
+					Messages:  val.Queue,
+				})
+			}
+		}
+	}
+
+	userConn.WriteJSON(response)
 }

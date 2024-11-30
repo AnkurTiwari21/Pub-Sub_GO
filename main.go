@@ -5,10 +5,13 @@ import (
 
 	"github.com/AnkurTiwari21/broker"
 	"github.com/AnkurTiwari21/exchange"
+	"github.com/AnkurTiwari21/models"
 	"github.com/AnkurTiwari21/objects"
 	"github.com/AnkurTiwari21/queue"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -20,17 +23,17 @@ func main() {
 	mapStringToExchange := map[string]exchange.Exchange{
 		"DIRECT": {
 			Type:   exchange.ExchangeTypeDirectExchange,
-			Name:   "DIRECT-EXCHANGE",
+			Name:   "DIRECT",
 			Queues: map[string]*queue.Queue{},
 		},
 		"FANOUT": {
 			Type:   exchange.ExchangeTypeFanoutExchange,
-			Name:   "FANOUT-EXCHANGE",
+			Name:   "FANOUT",
 			Queues: map[string]*queue.Queue{},
 		},
 		"TOPIC": {
 			Type:   exchange.ExchangeTypeTopicExchange,
-			Name:   "TOPIC-EXCHANGE",
+			Name:   "TOPIC",
 			Queues: map[string]*queue.Queue{},
 		},
 	}
@@ -42,6 +45,19 @@ func main() {
 		Exchanges: mapStringToExchange,
 		UsersConn: map[string]*websocket.Conn{},
 	}
+
+	//recover data that is saved in the db
+
+	//connection
+	dsn := "host=localhost user=ankur password=ankur dbname=pubsub port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		logrus.Error("Error in Establishing Connection :", err)
+		return
+	}
+	db.SetupJoinTable(&models.Exchange{}, "Queues", &models.Binding{})
+	db.AutoMigrate(&models.Exchange{}, &models.Queue{}, &models.Binding{})
+	//
 
 	//fire workers to work on read and write chan that will continuously be update in the conn below
 	go broker.Worker(read, write, &broker)

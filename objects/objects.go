@@ -22,6 +22,12 @@ type CommunicationMessage struct {
 
 type Response struct {
 	Message        string `json:"message,omitempty"`
+	Data           string `json:"data,omitempty"`
 	UserWSConnUUID string `json:"conn,omitempty"`
 	ErrorMessage   string `json:"error_message,omitempty"`
+}
+
+type CompleteResponse struct {
+	QueueName string   `json:"queue_name"`
+	Messages  []string `json:"message"`
 }

@@ -126,8 +126,11 @@ func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Brok
 		//add the connection  uuid
 		request.UserConnString = uuidStr
 		//convrt to bytes and send
-		respBytes, _ := json.Marshal(request)
-
+		respBytes, err := json.Marshal(request)
+		if err != nil {
+			logrus.Error("error marshalling json:err", err)
+			return
+		}
 		//plan: send this task to go routine(read chan)
 		read <- respBytes
 		//write corresponding result in write chan
@@ -156,6 +159,10 @@ func (br *Broker) Worker(read chan []byte, write chan []byte, broker *Broker) {
 		case "CONSUME_QUEUE":
 			exchange := broker.Exchanges[request.ExchangeType]
 			exchange.Consume(write, request, broker.UsersConn[request.UserConnString])
+		case "LIST_DATA":
+			exchange := broker.Exchanges[request.ExchangeType]
+			exchange.ListAllMessages(broker.UsersConn[request.UserConnString])
 		}
+
 	}
 }
