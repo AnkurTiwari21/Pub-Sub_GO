@@ -14,3 +14,4 @@ type Exchange struct {
 	Name   string
 	Queues map[string]queue.Queue
 }
+
