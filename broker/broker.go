@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/AnkurTiwari21/exchange"
+	"github.com/AnkurTiwari21/objects"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,14 @@ import (
 
 // {
 // 	TASK: SUBSCRIBE_QUEUE
+// 	BINDING_KEY:
+// 	QUEUE_NAME:
+// 	EXCHANGE_NAME:
+// 	DURABILITY:
+// }
+
+// {
+// 	TASK: UNSUBSCRIBE_QUEUE
 // 	BINDING_KEY:
 // 	QUEUE_NAME:
 // 	EXCHANGE_NAME:
@@ -35,6 +44,7 @@ import (
 // 	EXCHANGE_NAME:
 // }
 
+//no need of below
 // {
 // 	TASK: CONFIGURE_EXCHANGE
 // 	EXCHANGE_NAME:
@@ -42,23 +52,16 @@ import (
 // 	DURABILITY:
 // }
 
-// type RequestMessage struct {
-// 	Task         string `json:"task"`
-// 	BindingKey   string `json:"binding_key"`
-// 	QueueName    string `json:"queue_name"`
-// 	ExchangeName string `json:"exchange_name"`
-// 	Durability   bool   `json:"durability"`
-// }
+// type MessageToExchange struct {
+// 	Task         string          `json:"task,omitempty"`
+// 	BindingKey   string          `json:"binding_key,omitempty"`
+// 	QueueName    string          `json:"queue_name,omitempty"`
+// 	ExchangeType string          `json:"exchange_name,omitempty"`
+// 	Durability   bool            `json:"durability,omitempty"`
+// 	Status       string          `json:"status,omitempty"`
+// 	Message      string          `json:"message,omitempty"`
 
-type CommunicationMessage struct {
-	Task         string `json:"task,omitempty"`
-	BindingKey   string `json:"binding_key,omitempty"`
-	QueueName    string `json:"queue_name,omitempty"`
-	ExchangeType string `json:"exchange_name,omitempty"`
-	Durability   bool   `json:"durability,omitempty"`
-	Status       string `json:"status,omitempty"`
-	Message      string `json:"message,omitempty"`
-}
+// }
 
 type Broker struct {
 	Port      int32
@@ -75,10 +78,10 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (br *Broker) InitConnection() {
+func (br *Broker) InitConnection(read chan []byte, write chan []byte) {
 	// Start WebSocket server
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handleSocketConnection(w, r, br)
+		handleSocketConnection(w, r, br, read, write)
 	})
 
 	logrus.Infof("WebSocket server started at ws://%s", br.Url)
@@ -88,7 +91,7 @@ func (br *Broker) InitConnection() {
 	}
 }
 
-func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Broker) {
+func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Broker, read chan []byte, write chan []byte) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -112,7 +115,7 @@ func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Brok
 			break
 		}
 
-		var request CommunicationMessage
+		var request objects.CommunicationMessage
 		err = json.Unmarshal(msg, &request)
 		if err != nil {
 			logrus.Errorf("Invalid JSON message: %v", err)
@@ -120,23 +123,40 @@ func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Brok
 		}
 
 		logrus.Infof("Received task: %s", request.Task)
-
-		// exchange:=broker.Exchanges[request.ExchangeType]
+		//add the connection  uuid
+		request.UserConnString = uuidStr
+		logrus.Info("uuid str")
+		logrus.Info(uuidStr)
+		logrus.Info(broker.UsersConn[request.UserConnString])
+		logrus.Info(request)
+		//convrt to bytes and send
+		respBytes, _ := json.Marshal(request)
 
 		//plan: send this task to go routine(read chan)
+		read <- respBytes
 		//write corresponding result in write chan
+	}
+	close(read)
+	close(write)
+}
 
-		// Respond to the client
-		response := CommunicationMessage{
-			Status:  "success",
-			Message: fmt.Sprintf("Processed task: %s", request.Task),
-		}
-		respBytes, _ := json.Marshal(response)
-		logrus.Info("connection is ", conn)
-		err = conn.WriteMessage(websocket.TextMessage, respBytes)
-		if err != nil {
-			logrus.Errorf("Error writing response: %v", err)
-			break
+func (br *Broker) Worker(read chan []byte, write chan []byte, broker *Broker) {
+	//here we continuosly accept the data coming and do operations
+	for val := range read {
+		var request objects.CommunicationMessage
+		json.Unmarshal(val, &request)
+		logrus.Info("received request from chan : ", request)
+		//write logic for processing these messages
+		switch request.Task {
+		case "SUBSCRIBE_QUEUE":
+			exchange := broker.Exchanges[request.ExchangeType]
+			logrus.Info("conn from map ")
+			logrus.Info(broker.UsersConn[request.UserConnString])
+
+			logrus.Info(request.UserConnString)
+			logrus.Info("all")
+			logrus.Info(broker.UsersConn)
+			exchange.SubscribeQueue(write, request, broker.UsersConn[request.UserConnString])
 		}
 	}
 }

@@ -2,12 +2,14 @@ package queue
 
 import (
 	"github.com/AnkurTiwari21/binding"
+	"github.com/gorilla/websocket"
 )
 
 type Queue struct {
-	Name       string
-	Queue      []string
-	BindingKey []binding.Binding
+	Name               string
+	Queue              []string //queue DS
+	BindingKey         []binding.Binding
+	UserSubscribedConn []*websocket.Conn
 }
 
 func (q *Queue) Enqueue(str string) {
