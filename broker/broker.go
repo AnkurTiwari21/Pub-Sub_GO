@@ -125,10 +125,6 @@ func handleSocketConnection(w http.ResponseWriter, r *http.Request, broker *Brok
 		logrus.Infof("Received task: %s", request.Task)
 		//add the connection  uuid
 		request.UserConnString = uuidStr
-		logrus.Info("uuid str")
-		logrus.Info(uuidStr)
-		logrus.Info(broker.UsersConn[request.UserConnString])
-		logrus.Info(request)
 		//convrt to bytes and send
 		respBytes, _ := json.Marshal(request)
 
@@ -150,13 +146,13 @@ func (br *Broker) Worker(read chan []byte, write chan []byte, broker *Broker) {
 		switch request.Task {
 		case "SUBSCRIBE_QUEUE":
 			exchange := broker.Exchanges[request.ExchangeType]
-			logrus.Info("conn from map ")
-			logrus.Info(broker.UsersConn[request.UserConnString])
-
-			logrus.Info(request.UserConnString)
-			logrus.Info("all")
-			logrus.Info(broker.UsersConn)
 			exchange.SubscribeQueue(write, request, broker.UsersConn[request.UserConnString])
+		case "UNSUBSCRIBE_QUEUE":
+			exchange := broker.Exchanges[request.ExchangeType]
+			exchange.UnSubscribeQueue(write, request, broker.UsersConn[request.UserConnString])
+		case "PUBLISH_QUEUE":
+			exchange := broker.Exchanges[request.ExchangeType]
+			exchange.Publish(write, request, broker.UsersConn[request.UserConnString])
 		}
 	}
 }

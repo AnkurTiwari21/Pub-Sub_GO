@@ -1,14 +1,13 @@
 package queue
 
 import (
-	"github.com/AnkurTiwari21/binding"
 	"github.com/gorilla/websocket"
 )
 
 type Queue struct {
 	Name               string
 	Queue              []string //queue DS
-	BindingKey         []binding.Binding
+	BindingKey         []string
 	UserSubscribedConn []*websocket.Conn
 }
 

@@ -16,11 +16,12 @@ type CommunicationMessage struct {
 	Durability     bool   `json:"durability,omitempty"`
 	Status         string `json:"status,omitempty"`
 	Message        string `json:"message,omitempty"`
-	UserConnString string `json:"user_uuid"`
+	UserConnString string `json:"user_uuid,omitempty"`
+	RoutingKey     string `json:"routing_key,omitempty"`
 }
 
 type Response struct {
 	Message        string `json:"message,omitempty"`
-	UserWSConnUUID string `json:"conn"`
+	UserWSConnUUID string `json:"conn,omitempty"`
 	ErrorMessage   string `json:"error_message,omitempty"`
 }
