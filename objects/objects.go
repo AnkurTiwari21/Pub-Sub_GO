@@ -21,13 +21,19 @@ type CommunicationMessage struct {
 }
 
 type Response struct {
-	Message        string `json:"message,omitempty"`
-	Data           string `json:"data,omitempty"`
-	UserWSConnUUID string `json:"conn,omitempty"`
-	ErrorMessage   string `json:"error_message,omitempty"`
+	Message        string             `json:"message,omitempty"`
+	Data           string             `json:"data,omitempty"`
+	UserWSConnUUID string             `json:"conn,omitempty"`
+	ErrorMessage   string             `json:"error_message,omitempty"`
+	Queues         []CompleteResponse `json:"queues"`
+	Task           string             `json:"task"`
 }
 
 type CompleteResponse struct {
 	QueueName string   `json:"queue_name"`
 	Messages  []string `json:"message"`
+}
+
+type AllMessage struct {
+	Queues []CompleteResponse `json:"queues"`
 }
