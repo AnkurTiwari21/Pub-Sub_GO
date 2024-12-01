@@ -195,61 +195,69 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 
 		go func() {
 			//receive a queue and update its content
-			q := <-distributor
-			q.Enqueue(request.Message)
+			for q := range distributor {
+				q.Enqueue(request.Message)
 
-			//start a seperate go routine to notify all the users connected to the queue that new item is added
-			go func() {
-				for _, val := range q.UserSubscribedConn {
+				//start a seperate go routine to notify all the users connected to the queue that new item is added
+				go func() {
+					for _, val := range q.UserSubscribedConn {
 
-					response := objects.Response{
-						Message: "The queue has a new item",
-						Data:    request.Message,
-						Task:    "PUBLISH_QUEUE",
+						response := objects.Response{
+							Message: "The queue has a new item",
+							Data:    request.Message,
+							Task:    "PUBLISH_QUEUE",
+						}
+						resBytes, _ := json.Marshal(&response)
+						val.WriteMessage(websocket.TextMessage, resBytes)
+						// write <- resBytes
 					}
-					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
-					// write <- resBytes
-				}
-			}()
+				}()
+			}
 		}()
 	case "DIRECT":
 		//iterate on queue and whose-ever binding key matches with the routing key the add the message in the queue and update all the conn
+		queuesList := []*queue.Queue{}
 		distributor := make(chan *queue.Queue)
 		logrus.Info("before")
 		logrus.Info(ex.Queues)
-		go func() {
-			for _, val := range ex.Queues {
-				isContain := false
-				for _, key := range val.BindingKey {
-					if key == request.RoutingKey {
-						isContain = true
-					}
-				}
-				if isContain == true {
-					distributor <- val
+
+		for _, val := range ex.Queues {
+			isContain := false
+			for _, key := range val.BindingKey {
+				if key == request.RoutingKey {
+					isContain = true
 				}
 			}
+			if isContain == true {
+				queuesList = append(queuesList, val)
+			}
+		}
+		logrus.Info("size is")
+		logrus.Info(len(queuesList))
+		go func() {
+			for _, val := range queuesList {
+				distributor <- val
+			}
 		}()
-
 		go func() {
 			//receive a queue and update its content
-			q := <-distributor
-			q.Enqueue(request.Message)
-			//start a seperate go routine to notify all the users connected to the queue that new item is added
-			go func() {
-				for _, val := range q.UserSubscribedConn {
+			for q := range distributor {
+				q.Enqueue(request.Message)
+				//start a seperate go routine to notify all the users connected to the queue that new item is added
+				go func() {
+					for _, val := range q.UserSubscribedConn {
 
-					response := objects.Response{
-						Message: "The queue has a new item",
-						Data:    request.Message,
-						Task:    "PUBLISH_QUEUE",
+						response := objects.Response{
+							Message: "The queue has a new item",
+							Data:    request.Message,
+							Task:    "PUBLISH_QUEUE",
+						}
+						resBytes, _ := json.Marshal(&response)
+						val.WriteMessage(websocket.TextMessage, resBytes)
+						// write <- resBytes
 					}
-					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
-					// write <- resBytes
-				}
-			}()
+				}()
+			}
 		}()
 	case "TOPIC":
 		//here the binding key is like ankur.*.uni or #.ozzy.*
@@ -298,22 +306,23 @@ func (ex *Exchange) Publish(write chan []byte, request objects.CommunicationMess
 		}()
 		go func() {
 			//receive a queue and update its content
-			q := <-distributor
-			q.Enqueue(request.Message)
+			for q := range distributor {
+				q.Enqueue(request.Message)
 
-			//start a seperate go routine to notify all the users connected to the queue that new item is added
-			go func() {
-				for _, val := range q.UserSubscribedConn {
+				//start a seperate go routine to notify all the users connected to the queue that new item is added
+				go func() {
+					for _, val := range q.UserSubscribedConn {
 
-					response := objects.Response{
-						Message: "The queue has a new item",
-						Data:    request.Message,
-						Task:    "PUBLISH_QUEUE",
+						response := objects.Response{
+							Message: "The queue has a new item",
+							Data:    request.Message,
+							Task:    "PUBLISH_QUEUE",
+						}
+						resBytes, _ := json.Marshal(&response)
+						val.WriteMessage(websocket.TextMessage, resBytes)
 					}
-					resBytes, _ := json.Marshal(&response)
-					val.WriteMessage(websocket.TextMessage, resBytes)
-				}
-			}()
+				}()
+			}
 		}()
 	}
 }
